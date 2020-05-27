@@ -1,0 +1,8 @@
+{
+  "name": "youModule",
+  "version": "1.0.0",
+  "description": "test module",
+  "main": "index.js",
+  "author": "apporoad",
+  "license": "MIT"
+}

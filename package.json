@@ -1,0 +1,22 @@
+{
+  "name": "dmodule-slim.js",
+  "version": "1.0.0",
+  "description": "part of dmodule",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/apporoad/dmodule-slim.js.git"
+  },
+  "keywords": [
+    "dmodule"
+  ],
+  "author": "apporoad",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/apporoad/dmodule-slim.js/issues"
+  },
+  "homepage": "https://github.com/apporoad/dmodule-slim.js#readme"
+}
