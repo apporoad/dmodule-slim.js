@@ -18,5 +18,8 @@
   "bugs": {
     "url": "https://github.com/apporoad/dmodule-slim.js/issues"
   },
-  "homepage": "https://github.com/apporoad/dmodule-slim.js#readme"
+  "homepage": "https://github.com/apporoad/dmodule-slim.js#readme",
+  "dependencies": {
+    "caller.js": "^1.0.3"
+  }
 }
