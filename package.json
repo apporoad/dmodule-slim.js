@@ -20,6 +20,11 @@
   },
   "homepage": "https://github.com/apporoad/dmodule-slim.js#readme",
   "dependencies": {
-    "caller.js": "^1.0.3"
+    "caller.js": "^1.0.3",
+    "lightning-request": "^0.2.0",
+    "lisa.utils": "^2.1.1"
+  },
+  "devDependencies": {
+    "jest": "^26.0.1"
   }
 }

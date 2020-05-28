@@ -3,14 +3,87 @@ const uType = utils.Type
 const calller = require('caller.js')
 const fs = require('fs')
 const path = require('path')
+const request = require('lightning-request')
 
+const localCache = {}
+const moduleCache = {}
+
+const loadLocalModules = (workspace)=>{
+    //缓存
+    if(localCache[workspace])
+        return localCache[workspace]
+    var dir  = path.join(workspace , 'dmodules')
+    if(!fs.existsSync(dir)){
+        return []
+    }
+    //遍历文件夹， 提取  *.js  获取文件夹
+    var files = fs.readdirSync(dir)
+    var rArr =[]
+    files.forEach(f=>{
+        var aName = path.join(dir, f)
+        var state =  fs.statSync(aName)
+        if(state.isFile()){
+            if(path.extname(aName) == '.js'){
+                //  xxx_1.1.3.js
+                //xxxx_111111111232323.js
+                var ns = utils.endTrim(f, '.js').split('_')
+                rArr.push({
+                    name : ns[0],
+                    version : ns.length>1 ? ns[1] : null,
+                    file : aName
+                })
+            }
+        }else{
+            //  文件夹情况
+            var packageJson = path.join(aName, 'package.json')
+            if(fs.existsSync(packageJson)){
+                var packageJson = JSON.parse(fs.readFileSync(packageJson,'utf8'))
+                rArr.push(Object.assign({},packageJson , { file : aName}))
+            }
+        }
+    })
+    //倒排序
+    rArr = utils.ArraySort(rArr , (a,b) => {
+         if(a.name == b.name)
+            return (a.version || '')  <  (b.version || '') ? 1 : -1
+        return a.name < b.name ? 1 : -1
+    })
+    localCache[workspace] = rArr
+    return rArr
+}
 
 const getCacheMetas = ()=>{}
 
-const loadScript = (module,config,options) =>{
+const loadScript = async (module,config,options) =>{
     // todo 浏览器判断
     
-    //获取metas
+    //缓存判断
+    var cacheKey = uType.isString(module)  ? module : module.name + (module.version || '')
+    if(moduleCache[cacheKey]){
+        return moduleCache[cacheKey]
+    }
+    //先判断本地是否有对应模块
+    var localModules = loadLocalModules(config.workspace)
+    if(localModules && localModules.length>0){
+        var index = utils.ArrayIndexOf(localModules,module , (one , two)=>{
+            if(uType.isString(one)){
+                return one == two.name
+            }else{
+                if(one.version){
+                    return one.name == two.name && one .version == two.version
+                }else{
+                    return one. name == two.name
+                }
+            }
+        })
+        if(index > -1){
+            moduleCache[cacheKey] = require(localModules[index].file)
+            return moduleCache[cacheKey]
+        }
+    }
+    //远程拉并加载
+    var globalModules =await exports.getGlobalModules()
+    
 
     //根据module 加载对于的modle， 并做缓存
 
@@ -77,4 +150,10 @@ module.exports = function(config){
     var dm = new DModule()
     dm.config(config)
     return dm
+}
+
+exports.getLocalModules = loadLocalModules
+
+exports.getGlobalModules =  async(url) =>{
+    return await request({ url :  url})
 }
