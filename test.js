@@ -7,3 +7,10 @@ var it2 = global.debug || it
 it2('test getLocalModules ' , async()=>{
 
 })
+
+
+it2('run' ,async()=>{
+
+    //require('./demoProject1/run')
+    require('./demoProject2/run')
+})

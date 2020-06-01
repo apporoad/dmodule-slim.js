@@ -34,7 +34,7 @@ const getCache = (workspace)=>{
 }
 
 const loadLocalModules = (workspace)=>{
-    var localCache =getCache().localCache
+    var localCache =getCache(workspace).localCache
     //缓存
     if(localCache[workspace])
         return localCache[workspace]
@@ -78,8 +78,6 @@ const loadLocalModules = (workspace)=>{
     return rArr
 }
 
-const getCacheMetas = ()=>{}
-
 const loadScript = async (module,config,options) =>{
     // todo 浏览器判断
     
@@ -87,7 +85,7 @@ const loadScript = async (module,config,options) =>{
     var moduleName = uType.isString(module) ? module : module.name
     var moduleVersion = uType.isString(module) ?   null : module.version
     var cacheKey =  moduleName  + '||'+ moduleVersion || ''
-    var moduleCache = getCache().moduleCache
+    var moduleCache = getCache(config.workspace).moduleCache
     //只有当存在version时，才加载缓存
     if(moduleVersion &&  moduleCache[cacheKey]){
         return moduleCache[cacheKey]
@@ -115,12 +113,12 @@ const loadScript = async (module,config,options) =>{
     }
 
     //根据module 加载对于的modle， 并做缓存
-    return await loadRemoteModule(moduleName,version,config)
+    return await loadRemoteModule(moduleName,moduleVersion,config)
 }
 var loadRemoteModule = async (moduleName, version,config)=>{
     var workspace = path.join(config.workspace, 'temp_dmodules')
     //远程拉并加载
-    var globalModules =await exports.getGlobalModules()
+    var globalModules = await exports.getGlobalModules(config.url)
     if(!globalModules[moduleName] || globalModules[moduleName].length == 0){
         console.log('dmodule : cannot find  module :' + moduleName)
         throw Error('dmodule : cannot find  module :' + moduleName)
@@ -143,7 +141,7 @@ var loadRemoteModule = async (moduleName, version,config)=>{
     }
 
 
-    var moduleCache = getCache().moduleCache
+    var moduleCache = getCache(config.workspace).moduleCache
     var mCacheKey = rightModule.name +  '||' + rightModule.version
     //只有当存在version时，才加载缓存
     if(moduleCache[mCacheKey]){
@@ -187,7 +185,7 @@ var loadRemoteModule = async (moduleName, version,config)=>{
             needDownLoad = true
             cache[downloadCahceKey] = newCache
         }
-        newCache = cahce[downloadCahceKey]
+        newCache = cache[downloadCahceKey]
     })
     //下载处理
     if(needDownLoad){
@@ -270,5 +268,5 @@ module.exports = function(config){
 exports.getLocalModules = loadLocalModules
 
 exports.getGlobalModules =  async(url) =>{
-    return await request({ url :  url})
+    return  (await request({ url :  url})).data
 }
