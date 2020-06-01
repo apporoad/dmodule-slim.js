@@ -4,11 +4,36 @@ const calller = require('caller.js')
 const fs = require('fs')
 const path = require('path')
 const request = require('lightning-request')
+const LiSASync = require('lisa.sync')
+const hent = require('hent')
 
-const localCache = {}
-const moduleCache = {}
+//所有缓存， 根据workspace，缓存不同
+const cache = {}
+const getCache = (workspace)=>{
+    if(!cache[workspace]){
+        var download = path.join(workspace , 'temp_dmodules')
+        if(!fs.existsSync(download)){
+            fs.mkdirSync(download)
+        }
+        download = path.join(download,'cache.json')
+        if(fs.existsSync(download)){
+            download = JSON.parse(fs.readFileSync(download,'utf8'))
+        }else{
+            fs.writeFileSync(download,'{}')
+            download = {}
+        }
+
+        cache[workspace] = {
+            localCache : {},
+            moduleCache : {}
+            //downloadCache: download
+        }
+    }
+    return cache[workspace]
+}
 
 const loadLocalModules = (workspace)=>{
+    var localCache =getCache().localCache
     //缓存
     if(localCache[workspace])
         return localCache[workspace]
@@ -58,8 +83,12 @@ const loadScript = async (module,config,options) =>{
     // todo 浏览器判断
     
     //缓存判断
-    var cacheKey = uType.isString(module)  ? module : module.name + (module.version || '')
-    if(moduleCache[cacheKey]){
+    var moduleName = uType.isString(module) ? module : module.name
+    var moduleVersion = uType.isString(module) ?   null : module.version
+    var cacheKey =  moduleName + moduleVersion || ''
+    var moduleCache = getCache().moduleCache
+    //只有当存在version时，才加载缓存
+    if(moduleVersion &&  moduleCache[cacheKey]){
         return moduleCache[cacheKey]
     }
     //先判断本地是否有对应模块
@@ -77,17 +106,87 @@ const loadScript = async (module,config,options) =>{
             }
         })
         if(index > -1){
-            moduleCache[cacheKey] = require(localModules[index].file)
-            return moduleCache[cacheKey]
+            var  m = require(localModules[index].file)
+            if(moduleVersion)
+                moduleCache[cacheKey] = m
+            return m
         }
     }
-    //远程拉并加载
-    var globalModules =await exports.getGlobalModules()
-    
 
     //根据module 加载对于的modle， 并做缓存
-
+    return await loadRemoteModule(moduleName,version,config)
 }
+var loadRemoteModule = async (moduleName, version,config)=>{
+    var workspace = path.join(config.workspace, 'temp_dmodules')
+    //远程拉并加载
+    var globalModules =await exports.getGlobalModules()
+    if(!globalModules[moduleName] || globalModules[moduleName].length == 0){
+        console.log('dmodule : cannot find  module :' + moduleName)
+        throw Error('dmodule : cannot find  module :' + moduleName)
+    }
+    var modules = globalModules[moduleName]
+    var rightModule = null
+    if(!version){
+        rightModule = modules[0]
+    }else{
+        for(var i =0 ;i<modules.length;i++){
+            if(modules[i].version == version){
+                rightModule = modules[i]
+                break
+            }
+        }
+        if(!rightModule){
+            console.log('dmodule : cannot find  module and version :'   + moduleName + '  ' + version)
+            throw Error('dmodule : cannot find  module and version :'   + moduleName + '  ' + version)
+        }
+    }
+    var downloadCahceKey = rightModule.name + rightModule.version
+    var sync = LiSASync(path.join(workspace, 'cache.json'))
+    var needDownLoad = false
+    var newCache = null
+    if(utils.endWith(rightModule.file , '.js')){
+         newCache = Object.assign( {},rightModule, {  cache :  path.join(workspace, rightModule.file )})
+    }
+    else{
+        newCache = Object.assign( {},rightModule, {  cache :  path.join(workspace, utils.endTrim(rightModule.file , '.zip') )})
+    }
+    sync.sync(cache =>{
+        if(cache[downloadCahceKey]){
+            temp =  cache[downloadCahceKey]
+            //判断服务端文件变化，如果变化更新本地文件
+            if(cache[downloadCahceKey].sha256 == rightModule.sha256 ){
+                //判断文件是否存在
+                if(!fs.existsSync(temp.cache)){
+                    needDownLoad = true
+                    cache[downloadCahceKey] = newCache
+                }
+            }else{
+                //不一致情况
+                //删除之前的文件
+                if(fs.statSync(temp.cache).isDirectory()){
+                    utils.rmrf(temp.cache)
+                }
+                else
+                    fs.unlinkSync(temp.cache)
+                needDownLoad = true
+                cache[downloadCahceKey] = newCache
+            }
+        }else{
+            // 没有缓存，那么下载处理
+            needDownLoad = true
+            cache[downloadCahceKey] = newCache
+        }
+        newCache = cahce[downloadCahceKey]
+    })
+    //下载处理
+    if(needDownLoad){
+         var { buffer} = await hent( utils.endTrim(config.url , '/') + '/' + rightModule.file )
+        fs.writeFileSync(newCache.cache, buffer)
+        if(utils.endWith(newCache.cache,'.zip')){
+            //todo
+        }
+    }
+} 
 
 
 var isWorkspace = dir=>{
