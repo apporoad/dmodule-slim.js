@@ -23,9 +23,9 @@
     "caller.js": "^1.0.3",
     "hent": "^1.0.2",
     "lightning-request": "^0.2.0",
-    "lisa.sync": "^1.1.4",
+    "lisa.sync": "^1.1.5",
     "lisa.unzip.js": "^1.0.0",
-    "lisa.utils": "^2.2.0",
+    "lisa.utils": "^2.3.0",
     "yauzl": "^2.10.0"
   },
   "devDependencies": {}

@@ -6,6 +6,7 @@ const path = require('path')
 const request = require('lightning-request')
 const LiSASync = require('lisa.sync')
 const hent = require('hent')
+const unzipper = require('lisa.unzip.js')
 
 //所有缓存， 根据workspace，缓存不同
 const cache = {}
@@ -85,7 +86,7 @@ const loadScript = async (module,config,options) =>{
     //缓存判断
     var moduleName = uType.isString(module) ? module : module.name
     var moduleVersion = uType.isString(module) ?   null : module.version
-    var cacheKey =  moduleName + moduleVersion || ''
+    var cacheKey =  moduleName  + '||'+ moduleVersion || ''
     var moduleCache = getCache().moduleCache
     //只有当存在version时，才加载缓存
     if(moduleVersion &&  moduleCache[cacheKey]){
@@ -140,6 +141,16 @@ var loadRemoteModule = async (moduleName, version,config)=>{
             throw Error('dmodule : cannot find  module and version :'   + moduleName + '  ' + version)
         }
     }
+
+
+    var moduleCache = getCache().moduleCache
+    var mCacheKey = rightModule.name +  '||' + rightModule.version
+    //只有当存在version时，才加载缓存
+    if(moduleCache[mCacheKey]){
+        return moduleCache[mCacheKey]
+    }
+
+    //当本地内存没有缓存时，加载远端
     var downloadCahceKey = rightModule.name + rightModule.version
     var sync = LiSASync(path.join(workspace, 'cache.json'))
     var needDownLoad = false
@@ -181,11 +192,16 @@ var loadRemoteModule = async (moduleName, version,config)=>{
     //下载处理
     if(needDownLoad){
          var { buffer} = await hent( utils.endTrim(config.url , '/') + '/' + rightModule.file )
-        fs.writeFileSync(newCache.cache, buffer)
-        if(utils.endWith(newCache.cache,'.zip')){
-            //todo
+         var df =path.join(workspace, rightModule.file )
+        fs.writeFileSync(df, buffer)
+        if(utils.endWith(df,'.zip')){
+            await unzipper.unzip(df,newCache.cache)
+            fs.unlinkSync(df)
         }
     }
+    // 缓存
+    moduleCache[mCacheKey] = require(newCache.cache)
+    return moduleCache[mCacheKey] 
 } 
 
 
